@@ -19,11 +19,6 @@ or
 APRS_CALLSIGN=FOO APRS_PASSCODE=BAR iex -S mix
 ```
 
-Once you are in the shell, start up the genserver:
-```
-Aprs.start_link
-```
-
-This will login to the APRS-IS system and you should start seeing packets flow in.
+On startup, the app will login to the APRS-IS system and you should start seeing packets flow in.
 
 Make sure you update the APRS filter in `config.exs`, as this controls what packets you see. If you don't, you'll get whatever default filter I happened to leave in the config.exs file last time I pushed code.
