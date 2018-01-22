@@ -2,7 +2,7 @@
 # and its dependencies with the aid of the Mix.Config module.
 use Mix.Config
 config :aprs,
-    server: 'first.aprs.net',
+    server: 'rotate.aprs.net',
     port: 14580,
     default_filter: "r/47.6/-122.3/100",
     login_id: System.get_env("APRS_CALLSIGN"),
