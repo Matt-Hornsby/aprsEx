@@ -15,7 +15,10 @@ defmodule Aprs do
 
     opts = [:binary, active: true]
     {:ok, socket} = :gen_tcp.connect(server, port, opts)
-    login_string = "user #{aprs_user_id} pass #{aprs_passcode} vers test 1.0 filter #{default_filter} \n"
+
+    login_string =
+      "user #{aprs_user_id} pass #{aprs_passcode} vers test 1.0 filter #{default_filter} \n"
+
     Logger.debug("Using server: #{server}:#{port}")
     Logger.debug("Logging in with string: #{login_string}")
     :gen_tcp.send(socket, login_string)
@@ -74,6 +77,6 @@ defmodule Aprs do
   defp dispatch(message) do
     parsed_message = Parser.parse(message)
     IO.inspect(parsed_message)
-    #Logger.debug("SERVER:" <> message)
+    # Logger.debug("SERVER:" <> message)
   end
 end
