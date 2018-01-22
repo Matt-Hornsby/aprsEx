@@ -1,12 +1,13 @@
 # This file is responsible for configuring your application
 # and its dependencies with the aid of the Mix.Config module.
 use Mix.Config
+
 config :aprs,
-    server: 'rotate.aprs.net',
-    port: 14580,
-    default_filter: "r/47.6/-122.3/100",
-    login_id: System.get_env("APRS_CALLSIGN"),
-    password: System.get_env("APRS_PASSCODE")
+  server: 'rotate.aprs.net',
+  port: 14580,
+  default_filter: "r/47.6/-122.3/100",
+  login_id: System.get_env("APRS_CALLSIGN"),
+  password: System.get_env("APRS_PASSCODE")
 
 # This configuration is loaded before any dependency and is restricted
 # to this project. If another project depends on this project, this
