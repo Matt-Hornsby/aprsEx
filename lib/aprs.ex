@@ -2,6 +2,8 @@ defmodule Aprs do
   use GenServer
   require Logger
 
+  # Initialization
+
   def start_link do
     server = Application.get_env(:aprs, :server, 'rotate.aprs.net')
     port = Application.get_env(:aprs, :port, 14580)
@@ -17,13 +19,14 @@ defmodule Aprs do
     {:ok, socket} = :gen_tcp.connect(server, port, opts)
 
     login_string =
-      "user #{aprs_user_id} pass #{aprs_passcode} vers test 1.0 filter #{default_filter} \n"
+      "user #{aprs_user_id} pass #{aprs_passcode} vers aprsEx 0.1 filter #{default_filter} \n"
 
-    Logger.debug("Using server: #{server}:#{port}")
-    Logger.debug("Logging in with string: #{login_string}")
+    Logger.debug("Logging into #{server}:#{port} with string: #{login_string}")
     :gen_tcp.send(socket, login_string)
     {:ok, %{server: server, port: port, socket: socket}}
   end
+
+  # Client API
 
   def stop() do
     Logger.info("Stopping Server")
@@ -41,6 +44,8 @@ defmodule Aprs do
   def send_message(message) do
     GenServer.call(__MODULE__, {:send_message, message <> "\r"})
   end
+
+  # Server methods
 
   def handle_call({:send_message, message}, _from, state) do
     Logger.debug("Sending message: #{message}")
