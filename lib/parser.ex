@@ -44,8 +44,26 @@ defmodule Parser do
   def parse_data(<<"!", rest::binary>>), do: parse_position_without_timestamp(false, rest)
   def parse_data(<<"=", rest::binary>>), do: parse_position_without_timestamp(true, rest)
   def parse_data(<<"/", rest::binary>>), do: parse_position_with_timestamp(false, rest)
+
+  #"@230355z4739.10N/12224.32W_182/001g006t043r000p015P015h86b10237l478.DsVP"
+  def parse_data(<<"@", date_time_position::binary-size(25), "_", weather_report::binary>>) do 
+    parse_position_with_datetime_and_weather(true, date_time_position, weather_report)
+  end
   def parse_data(<<"@", rest::binary>>), do: parse_position_with_timestamp(true, rest)
   def parse_data(_data), do: nil
+
+  def parse_position_with_datetime_and_weather(aprs_messaging?, date_time_position_data, weather_report) do
+    <<time::binary-size(7), latitude::binary-size(8), sym_table_id::binary-size(1), longitude::binary-size(9)>> = date_time_position_data
+    %{
+      latitude: latitude,
+      symbol_table_id: sym_table_id,
+      longitude: longitude,
+      symbol_code: "_",
+      weather: weather_report,
+      data_type: :position_with_datetime_and_weather,
+      aprs_messaging?: aprs_messaging?
+    }
+  end
 
   def parse_position_without_timestamp(
         aprs_messaging?,
