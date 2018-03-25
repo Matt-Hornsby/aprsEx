@@ -23,6 +23,8 @@ defmodule Aprs do
 
     Logger.debug("Logging into #{server}:#{port} with string: #{login_string}")
     :gen_tcp.send(socket, login_string)
+
+    timer = Process.send_after(self(), :ping, 60 * 1000) # In 1 minute
     {:ok, %{server: server, port: port, socket: socket}}
   end
 
@@ -47,8 +49,14 @@ defmodule Aprs do
 
   # Server methods
 
+  def handle_info(:ping, state) do
+    Logger.info("Pinging server with #")
+    :gen_tcp.send(state.socket, "#\r")
+    {:noreply, state}
+  end
+
   def handle_call({:send_message, message}, _from, state) do
-    Logger.debug("Sending message: #{message}")
+    Logger.info("Sending message: #{message}")
     :gen_tcp.send(state.socket, message)
     {:reply, :ok, state}
   end
@@ -60,12 +68,12 @@ defmodule Aprs do
 
   def handle_info({:tcp_closed, socket}, state) do
     Logger.info("Socket has been closed")
-    {:noreply, state}
+    {:stop, :normal, state}
   end
 
   def handle_info({:tcp_error, socket, reason}, state) do
-    IO.inspect(socket, label: "connection closed dut to #{reason}")
-    {:noreply, state}
+    IO.inspect(socket, label: "connection closed due to #{reason}")
+    {:stop, :normal, state}
   end
 
   def terminate(reason, state) do
@@ -77,11 +85,17 @@ defmodule Aprs do
 
   defp dispatch("#" <> comment_text) do
     Logger.debug("COMMENT:" <> String.trim(comment_text))
+    #Registry.dispatch(Registry.PubSubTest, "hello", fn entries ->
+    #  for {pid, _} <- entries, do: send(pid, {:broadcast, comment_text})
+    #end)
   end
 
   defp dispatch(message) do
     parsed_message = Parser.parse(message)
-    IO.inspect(parsed_message)
-    # Logger.debug("SERVER:" <> message)
+    #IO.inspect(parsed_message)
+    Registry.dispatch(Registry.PubSub, "aprs_messages", fn entries ->
+      for {pid, _} <- entries, do: send(pid, {:broadcast, parsed_message})
+    end)
+    Logger.debug("SERVER:" <> message)
   end
 end
