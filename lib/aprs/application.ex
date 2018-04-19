@@ -5,7 +5,7 @@ defmodule Aprs.Application do
     import Supervisor.Spec
 
     children = [
-      {Registry, keys: :duplicate, name: Registry.PubSub,partitions: System.schedulers_online},
+      {Registry, keys: :duplicate, name: Registry.PubSub, partitions: System.schedulers_online()},
       worker(Aprs, [])
     ]
 
