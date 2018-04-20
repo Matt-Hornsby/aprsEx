@@ -15,24 +15,42 @@ defmodule Aprs do
   end
 
   def init([server, port, default_filter]) do
+    # TODO: Either put these up in start_link, or move the start_link stuff here
     aprs_user_id = Application.get_env(:aprs, :login_id, "CHANGE_ME")
     aprs_passcode = Application.get_env(:aprs, :password, "-1")
 
-    Logger.debug("Attempting to connect to #{server}:#{port}")
+    #login_string =
+    #  "user #{aprs_user_id} pass #{aprs_passcode} vers aprsEx 0.1 filter #{default_filter} \n"
 
-    opts = [:binary, active: true]
-    {:ok, socket} = :gen_tcp.connect(server, port, opts)
+    #{:ok, socket} = connect_to_aprs_is(server, port)
+    # :ok = :gen_tcp.send(socket, login_string)
+    #:ok = send_login_string(socket, aprs_user_id, aprs_passcode, default_filter)
+    #timer = create_timer(@aprs_timeout)
+    #{:ok, %{server: server, port: port, socket: socket, timer: timer}}
 
-    Logger.debug("Connection established")
+    with {:ok, socket} <- connect_to_aprs_is(server, port),
+         :ok <- send_login_string(socket, aprs_user_id, aprs_passcode, default_filter),
+         timer <- create_timer(@aprs_timeout) do
+      {:ok, %{server: server, port: port, socket: socket, timer: timer}}
+    else
+      _ -> {:stop, :aprs_connection_failed}
+    end
 
-    login_string =
-      "user #{aprs_user_id} pass #{aprs_passcode} vers aprsEx 0.1 filter #{default_filter} \n"
+    # Logger.debug("Attempting to connect to #{server}:#{port}")
 
-    Logger.debug("Sending login string: #{login_string}")
-    :ok = :gen_tcp.send(socket, login_string)
+    # opts = [:binary, active: true]
+    # {:ok, socket} = :gen_tcp.connect(server, port, opts)
 
-    timer = Process.send_after(self(), :aprs_no_message_timeout, @aprs_timeout)
-    {:ok, %{server: server, port: port, socket: socket, timer: timer}}
+    # Logger.debug("Connection established")
+
+    # login_string =
+    #   "user #{aprs_user_id} pass #{aprs_passcode} vers aprsEx 0.1 filter #{default_filter} \n"
+
+    # Logger.debug("Sending login string: #{login_string}")
+    # :ok = :gen_tcp.send(socket, login_string)
+
+    # timer = Process.send_after(self(), :aprs_no_message_timeout, @aprs_timeout)
+    # {:ok, %{server: server, port: port, socket: socket, timer: timer}}
   end
 
   # Client API
@@ -55,6 +73,23 @@ defmodule Aprs do
   end
 
   # Server methods
+
+  defp connect_to_aprs_is(server, port) do
+    Logger.debug("Attempting to connect to #{server}:#{port}")
+    opts = [:binary, active: true]
+    :gen_tcp.connect(server, port, opts)
+  end
+
+  defp send_login_string(socket, aprs_user_id, aprs_passcode, filter) do
+    login_string =
+      "user #{aprs_user_id} pass #{aprs_passcode} vers aprsEx 0.1 filter #{filter} \n"
+
+    :gen_tcp.send(socket, login_string)
+  end
+
+  defp create_timer(timeout) do
+    Process.send_after(self(), :aprs_no_message_timeout, timeout)
+  end
 
   def handle_call({:send_message, message}, _from, state) do
     Logger.info("Sending message: #{message}")
