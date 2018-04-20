@@ -8,7 +8,7 @@ defmodule Aprs do
   # Initialization
 
   def start_link do
-    server = Application.get_env(:aprs, :server, 'rotate.aprs.net')
+    server = Application.get_env(:aprs, :server, 'rotate.aprs2.net')
     port = Application.get_env(:aprs, :port, 14580)
     default_filter = Application.get_env(:aprs, :default_filter, "r/47.6/-122.3/100")
     GenServer.start_link(__MODULE__, [server, port, default_filter], name: __MODULE__)
@@ -28,8 +28,8 @@ defmodule Aprs do
     login_string =
       "user #{aprs_user_id} pass #{aprs_passcode} vers aprsEx 0.1 filter #{default_filter} \n"
 
-    Logger.debug("Logging into #{server}:#{port} with string: #{login_string}")
-    :gen_tcp.send(socket, login_string)
+    Logger.debug("Sending login string: #{login_string}")
+    :ok = :gen_tcp.send(socket, login_string)
 
     timer = Process.send_after(self(), :aprs_no_message_timeout, @aprs_timeout)
     {:ok, %{server: server, port: port, socket: socket, timer: timer}}
@@ -64,7 +64,7 @@ defmodule Aprs do
 
   def handle_info(:aprs_no_message_timeout, state) do
     Logger.info("Socket timeout detected. Killing genserver.")
-    {:stop, :apts_timeout, state}
+    {:stop, :aprs_timeout, state}
   end
 
   def handle_info({:tcp, _socket, packet}, state) do
