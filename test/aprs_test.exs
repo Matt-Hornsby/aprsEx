@@ -35,7 +35,7 @@ defmodule AprsTest do
     information_field = ~s(`\(_fn"Oj/)
     sut = Parser.parse_mic_e_information(information_field, 100)
 
-    assert sut == 
+    assert sut ==
              %{
                dti: "`",
                heading: 251,
@@ -44,7 +44,6 @@ defmodule AprsTest do
                lon_minutes: 7,
                speed: 20
              }
-           
   end
 
   test "mic_e" do

@@ -125,6 +125,7 @@ defmodule Aprs.Parser do
       longitude::binary-size(9)>> = date_time_position_data
 
     %{
+      timestamp: time,
       latitude: latitude,
       symbol_table_id: sym_table_id,
       longitude: longitude,
@@ -326,7 +327,9 @@ defmodule Aprs.Parser do
       lon_minutes: m,
       lon_fractional: f28 - 28,
       speed: dc,
-      heading: heading
+      heading: heading,
+      symbol: symbol,
+      table: table
     }
   end
 end
