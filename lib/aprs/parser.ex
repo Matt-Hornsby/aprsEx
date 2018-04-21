@@ -7,33 +7,15 @@ defmodule Aprs.Parser do
     [base_callsign, ssid] = parse_callsign(sender)
     data_type = String.first(data) |> parse_datatype
 
-    # aprs_data = String.slice(data, 1..-1) |> String.trim
     data = String.trim(data)
-
-    aprs_data =
-      case data_type do
-        :unknown_datatype ->
-          data
-
-        _ ->
-          String.slice(data, 1..-1)
-      end
-
     [destination, path] = String.split(path, ",", parts: 2)
-
-    # Regex.match?(~r/^q[A-Z]{2}$/, "qAR") # match 3 digit q code exactly
-    # Regex.replace((~r/q[A-Z]{2}/, "qAR", "") # removes any 3 character q code from the string
-    # Regex.named_captures(~r/(?<q_code>^q[A-Z]{2}$)/, "qAR") # captures any q code into the q_code group (must match exactly)
-    # Regex.named_captures(~r/(?<q_code>q[A-Z]{2})/, test) # capture the 3 digit q-code from anywhere in the string
-
-    data_extended = parse_data(data_type, destination, aprs_data)
+    data_extended = parse_data(data_type, destination, data)
 
     %{
       sender: sender,
       path: path,
       destination: destination,
       information_field: data,
-      data: String.trim(aprs_data),
       data_type: data_type,
       base_callsign: base_callsign,
       ssid: ssid,
@@ -88,7 +70,7 @@ defmodule Aprs.Parser do
   def parse_data(
         :timestamped_position_with_message,
         _destination,
-        <<date_time_position::binary-size(25), "_", weather_report::binary>>
+        <<dti::binary-size(1), date_time_position::binary-size(25), "_", weather_report::binary>>
       ) do
     parse_position_with_datetime_and_weather(true, date_time_position, weather_report)
   end
@@ -97,24 +79,6 @@ defmodule Aprs.Parser do
     do: parse_position_with_timestamp(true, data)
 
   def parse_data(_type, _destination, _data), do: nil
-
-  # "@230355z4739.10N/12224.32W_182/001g006t043r000p015P015h86b10237l478.DsVP"
-  # def parse_data(<<"@", date_time_position::binary-size(25), "_", weather_report::binary>>) do 
-  #   parse_position_with_datetime_and_weather(true, date_time_position, weather_report)
-  # end
-  # def parse_data(<<"@", rest::binary>>), do: parse_position_with_timestamp(true, rest)
-  # def parse_data(_data), do: nil
-
-  # def parse_data(<<"!", rest::binary>>), do: parse_position_without_timestamp(false, rest)
-  # def parse_data(<<"=", rest::binary>>), do: parse_position_without_timestamp(true, rest)
-  # def parse_data(<<"/", rest::binary>>), do: parse_position_with_timestamp(false, rest)
-
-  # #"@230355z4739.10N/12224.32W_182/001g006t043r000p015P015h86b10237l478.DsVP"
-  # def parse_data(<<"@", date_time_position::binary-size(25), "_", weather_report::binary>>) do 
-  #   parse_position_with_datetime_and_weather(true, date_time_position, weather_report)
-  # end
-  # def parse_data(<<"@", rest::binary>>), do: parse_position_with_timestamp(true, rest)
-  # def parse_data(_data), do: nil
 
   def parse_position_with_datetime_and_weather(
         aprs_messaging?,
@@ -138,8 +102,8 @@ defmodule Aprs.Parser do
 
   def parse_position_without_timestamp(
         aprs_messaging?,
-        <<latitude::binary-size(8), sym_table_id::binary-size(1), longitude::binary-size(9),
-          symbol_code::binary-size(1), comment::binary>>
+        <<dti::binary-size(1), latitude::binary-size(8), sym_table_id::binary-size(1),
+          longitude::binary-size(9), symbol_code::binary-size(1), comment::binary>>
       ) do
     %{
       latitude: latitude,
@@ -154,8 +118,9 @@ defmodule Aprs.Parser do
 
   def parse_position_with_timestamp(
         aprs_messaging?,
-        <<time::binary-size(7), latitude::binary-size(8), sym_table_id::binary-size(1),
-          longitude::binary-size(9), symbol_code::binary-size(1), comment::binary>>
+        <<dti::binary-size(1), time::binary-size(7), latitude::binary-size(8),
+          sym_table_id::binary-size(1), longitude::binary-size(9), symbol_code::binary-size(1),
+          comment::binary>>
       ) do
     %{
       time: time,
@@ -178,7 +143,6 @@ defmodule Aprs.Parser do
     # Latitude, message code, N/S & E/W indicators, longitude offset, digipath code
     destination_data = parse_mic_e_destination(destination_field)
 
-    # TODO: Parse the rest of the information
     information_data =
       parse_mic_e_information(information_field, destination_data.longitude_offset)
 
