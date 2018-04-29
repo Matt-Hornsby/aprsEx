@@ -70,7 +70,7 @@ defmodule Aprs.Parser do
   def parse_data(
         :timestamped_position_with_message,
         _destination,
-        <<dti::binary-size(1), date_time_position::binary-size(25), "_", weather_report::binary>>
+        <<_dti::binary-size(1), date_time_position::binary-size(25), "_", weather_report::binary>>
       ) do
     parse_position_with_datetime_and_weather(true, date_time_position, weather_report)
   end
@@ -88,11 +88,12 @@ defmodule Aprs.Parser do
     <<time::binary-size(7), latitude::binary-size(8), sym_table_id::binary-size(1),
       longitude::binary-size(9)>> = date_time_position_data
 
+    position = Aprs.Types.Position.from_aprs(latitude, longitude)
+
     %{
+      position: position,
       timestamp: time,
-      latitude: latitude,
       symbol_table_id: sym_table_id,
-      longitude: longitude,
       symbol_code: "_",
       weather: weather_report,
       data_type: :position_with_datetime_and_weather,
@@ -102,13 +103,14 @@ defmodule Aprs.Parser do
 
   def parse_position_without_timestamp(
         aprs_messaging?,
-        <<dti::binary-size(1), latitude::binary-size(8), sym_table_id::binary-size(1),
+        <<_dti::binary-size(1), latitude::binary-size(8), sym_table_id::binary-size(1),
           longitude::binary-size(9), symbol_code::binary-size(1), comment::binary>>
       ) do
+    position = Aprs.Types.Position.from_aprs(latitude, longitude)
+
     %{
-      latitude: latitude,
+      position: position,
       symbol_table_id: sym_table_id,
-      longitude: longitude,
       symbol_code: symbol_code,
       comment: comment,
       data_type: :position,
@@ -118,15 +120,16 @@ defmodule Aprs.Parser do
 
   def parse_position_with_timestamp(
         aprs_messaging?,
-        <<dti::binary-size(1), time::binary-size(7), latitude::binary-size(8),
+        <<_dti::binary-size(1), time::binary-size(7), latitude::binary-size(8),
           sym_table_id::binary-size(1), longitude::binary-size(9), symbol_code::binary-size(1),
           comment::binary>>
       ) do
+    position = Aprs.Types.Position.from_aprs(latitude, longitude)
+
     %{
+      position: position,
       time: time,
-      latitude: latitude,
       symbol_table_id: sym_table_id,
-      longitude: longitude,
       symbol_code: symbol_code,
       comment: comment,
       data_type: :position,
@@ -146,7 +149,6 @@ defmodule Aprs.Parser do
     information_data =
       parse_mic_e_information(information_field, destination_data.longitude_offset)
 
-    # [destination_data, information_data]
     %Mic_e{
       lat_degrees: destination_data.lat_degrees,
       lat_minutes: destination_data.lat_minutes,
@@ -161,7 +163,9 @@ defmodule Aprs.Parser do
       lon_degrees: information_data.lon_degrees,
       lon_minutes: information_data.lon_minutes,
       lon_fractional: information_data.lon_fractional,
-      speed: information_data.speed
+      speed: information_data.speed,
+      manufacturer: information_data.manufacturer,
+      message: information_data.message
     }
   end
 
@@ -264,7 +268,7 @@ defmodule Aprs.Parser do
   def parse_mic_e_information(
         <<dti::binary-size(1), d28::integer, m28::integer, f28::integer, sp28::integer,
           dc28::integer, se28::integer, symbol::binary-size(1), table::binary-size(1),
-          rest::binary>> = _information_field,
+          message::binary>> = _information_field,
         longitude_offset
       ) do
     m =
@@ -285,6 +289,24 @@ defmodule Aprs.Parser do
     dc = sp * 10 + quotient
     heading = (remainder - 4) * 100 + (se28 - 28)
 
+    # Messages should at least have a starting and ending symbol, and an optional message in between
+    # But, there might not be any symbols either, so it could look like any of the following:
+    # >^  <- TH-D74
+    # nil <- who knows
+    # ]\"55}146.820 MHz T103 -0600= <- Kenwood DM-710
+
+    regex = ~r/^(?<first>.?)(?<msg>.*)(?<secondtolast>.)(?<last>.)$/i
+    result = find_matches(regex, message)
+
+    symbol1 =
+      if result["first"] == "" do
+        result["secondtolast"]
+      else
+        result["first"]
+      end
+
+    manufacturer = parse_manufacturer(symbol1, result["secondtolast"], result["last"])
+
     %{
       dti: dti,
       lon_degrees: d28 - 28 + longitude_offset,
@@ -293,7 +315,50 @@ defmodule Aprs.Parser do
       speed: dc,
       heading: heading,
       symbol: symbol,
-      table: table
+      table: table,
+      manufacturer: manufacturer,
+      message: message
     }
+  end
+
+  def parse_manufacturer(" ", _s2, _s3), do: "Original MIC-E"
+  def parse_manufacturer(">", _s2, "="), do: "Kenwood TH-D72"
+  def parse_manufacturer(">", _s2, "^"), do: "Kenwood TH-D74"
+  def parse_manufacturer(">", _s2, _s3), do: "Kenwood TH-D74A"
+  def parse_manufacturer("]", _s2, "="), do: "Kenwood DM-710"
+  def parse_manufacturer("]", _s2, _s3), do: "Kenwood DM-700"
+  def parse_manufacturer("`", "_", " "), do: "Yaesu VX-8"
+  def parse_manufacturer("`", "_", "\""), do: "Yaesu FTM-350"
+  def parse_manufacturer("`", "_", "#"), do: "Yaesu VX-8G"
+  def parse_manufacturer("`", "_", "$"), do: "Yaesu FT1D"
+  def parse_manufacturer("`", "_", "%"), do: "Yaesu FTM-400DR"
+  def parse_manufacturer("`", "_", ")"), do: "Yaesu FTM-100D"
+  def parse_manufacturer("`", "_", "("), do: "Yaesu FT2D"
+  def parse_manufacturer("`", " ", "X"), do: "AP510"
+  def parse_manufacturer("`", _s2, _s3), do: "Mic-Emsg"
+  def parse_manufacturer("'", "|", "3"), do: "Byonics TinyTrack3"
+  def parse_manufacturer("'", "|", "4"), do: "Byonics TinyTrack4"
+  def parse_manufacturer("'", ":", "4"), do: "SCS GmbH & Co. P4dragon DR-7400 modems"
+  def parse_manufacturer("'", ":", "8"), do: "SCS GmbH & Co. P4dragon DR-7800 modems"
+  def parse_manufacturer("'", _s2, _s3), do: "McTrackr"
+  def parse_manufacturer(_s1, "\"", _s3), do: "Hamhud ?"
+  def parse_manufacturer(_s1, "/", _s3), do: "Argent ?"
+  def parse_manufacturer(_s1, "^", _s3), do: "HinzTec anyfrog"
+  def parse_manufacturer(_s1, "*", _s3), do: "APOZxx www.KissOZ.dk Tracker. OZ1EKD and OZ7HVO"
+  def parse_manufacturer(_s1, "~", _s3), do: "Other"
+  def parse_manufacturer(_symbol1, _symbol2, _symbol3), do: :unknown_manufacturer
+
+  defp find_matches(regex, text) do
+    case Regex.names(regex) do
+      [] ->
+        matches = Regex.run(regex, text)
+
+        Enum.reduce(Enum.with_index(matches), %{}, fn {match, index}, acc ->
+          Map.put(acc, index, match)
+        end)
+
+      _ ->
+        Regex.named_captures(regex, text)
+    end
   end
 end

@@ -14,5 +14,7 @@ defmodule Aprs.Types.Mic_e do
             lon_degrees: 0,
             lon_minutes: 0,
             lon_fractional: 0,
-            speed: 0
+            speed: 0,
+            manufacturer: :unknown,
+            message: ""
 end
