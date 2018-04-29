@@ -32,7 +32,7 @@ defmodule AprsTest do
   end
 
   test "mic_e convert information field" do
-    information_field = ~s(`\(_fn"Oj/)
+    information_field = ~s(`\(_fn"Oj/]TEST=)
     sut = Parser.parse_mic_e_information(information_field, 100)
 
     assert sut ==
@@ -42,7 +42,11 @@ defmodule AprsTest do
                lon_degrees: 112,
                lon_fractional: 74,
                lon_minutes: 7,
-               speed: 20
+               speed: 20,
+               symbol: "j",
+               table: "/",
+               message: "]TEST=",
+               manufacturer: "Kenwood DM-710"
              }
   end
 
