@@ -115,13 +115,13 @@ defmodule Aprs do
   end
 
   defp dispatch(message) do
+    IO.inspect(message)
     parsed_message = Parser.parse(message)
 
     Registry.dispatch(Registry.PubSub, "aprs_messages", fn entries ->
       for {pid, _} <- entries, do: send(pid, {:broadcast, parsed_message})
     end)
 
-    IO.inspect(message)
     IO.inspect(parsed_message)
     Logger.debug("SERVER:" <> message)
   end
