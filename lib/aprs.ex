@@ -75,7 +75,7 @@ defmodule Aprs do
   end
 
   def handle_info(:aprs_no_message_timeout, state) do
-    Logger.info("Socket timeout detected. Killing genserver.")
+    Logger.error("Socket timeout detected. Killing genserver.")
     {:stop, :aprs_timeout, state}
   end
 
@@ -84,7 +84,8 @@ defmodule Aprs do
     Process.cancel_timer(state.timer)
 
     # Handle the incoming message
-    dispatch(packet)
+    Task.start(Aprs, :dispatch, [packet])
+    # dispatch(packet)
 
     # Start a new timer
     timer = Process.send_after(self(), :aprs_no_message_timeout, @aprs_timeout)
@@ -99,7 +100,7 @@ defmodule Aprs do
   end
 
   def handle_info({:tcp_error, socket, reason}, state) do
-    IO.inspect(socket, label: "connection closed due to #{reason}")
+    Logger.error("Connection closed due to #{inspect(reason)}")
     {:stop, :normal, state}
   end
 
@@ -110,11 +111,11 @@ defmodule Aprs do
     :normal
   end
 
-  defp dispatch("#" <> comment_text) do
+  def dispatch("#" <> comment_text) do
     Logger.debug("COMMENT:" <> String.trim(comment_text))
   end
 
-  defp dispatch(message) do
+  def dispatch(message) do
     IO.inspect(message)
     parsed_message = Parser.parse(message)
 
