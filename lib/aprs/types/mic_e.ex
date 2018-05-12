@@ -3,7 +3,7 @@ defmodule Aprs.Types.Mic_e do
 
   defstruct lat_degrees: 0,
             lat_minutes: 0,
-            lat_seconds: 0,
+            lat_fractional: 0,
             lat_direction: :unknown,
             lon_direction: :unknown,
             longitude_offset: 0,

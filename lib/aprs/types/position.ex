@@ -11,11 +11,15 @@ defmodule Aprs.Types.Position do
             lon_fractional: 0
 
   def from_aprs(aprs_latitude, aprs_longitude) do
+    IO.inspect([aprs_latitude, aprs_longitude])
+    aprs_latitude = aprs_latitude |> String.replace(" ", "0") |> String.pad_leading(9, "0")
+    aprs_longitude = aprs_longitude |> String.replace(" ", "0") |> String.pad_leading(9, "0")
+
     <<lat_deg::binary-size(3), lat_min::binary-size(2), lat_fractional::binary-size(3),
-      lat_direction::binary>> = String.pad_leading(aprs_latitude, 9, "0")
+      lat_direction::binary>> = aprs_latitude
 
     <<lon_deg::binary-size(3), lon_min::binary-size(2), lon_fractional::binary-size(3),
-      lon_direction::binary>> = String.pad_leading(aprs_longitude, 9, "0")
+      lon_direction::binary>> = aprs_longitude
 
     %Position{
       lat_degrees: lat_deg |> String.to_integer(),
@@ -50,5 +54,11 @@ defmodule Aprs.Types.Position do
   defp convert_direction(:unknown), do: ""
 
   defp convert_fractional(fractional),
-    do: fractional |> String.pad_leading(4, "0") |> String.to_float() |> Kernel.*(60)
+    do:
+      fractional
+      |> String.trim()
+      |> String.pad_leading(4, "0")
+      |> String.to_float()
+      |> Kernel.*(60)
+      |> Float.round(2)
 end

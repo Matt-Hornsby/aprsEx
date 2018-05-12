@@ -22,7 +22,7 @@ defmodule AprsTest do
     assert sut == %{
              lat_degrees: 47,
              lat_minutes: 39,
-             lat_seconds: 70,
+             lat_fractional: 70,
              lat_direction: :north,
              lon_direction: :west,
              longitude_offset: 100,

@@ -51,7 +51,6 @@ defmodule Aprs.Parser do
   def parse_datatype(datatype) when datatype == "$", do: :raw_gps_ultimeter
   def parse_datatype(datatype) when datatype == "<", do: :station_capabilities
   def parse_datatype(datatype) when datatype == "?", do: :query
-  def parse_datatype(datatype) when datatype == ":", do: :message
   def parse_datatype(datatype) when datatype == "{", do: :user_defined
   def parse_datatype(datatype) when datatype == "}", do: :third_party_traffic
 
@@ -78,6 +77,10 @@ defmodule Aprs.Parser do
   def parse_data(:timestamped_position_with_message, _destination, data),
     do: parse_position_with_timestamp(true, data)
 
+  def parse_data(:message, destination, <<":", addressee::binary-size(9), ":", message_text::binary>>) do
+    %{to: String.trim(addressee), message_text: String.trim(message_text)}
+  end
+
   def parse_data(_type, _destination, _data), do: nil
 
   def parse_position_with_datetime_and_weather(
@@ -99,6 +102,33 @@ defmodule Aprs.Parser do
       data_type: :position_with_datetime_and_weather,
       aprs_messaging?: aprs_messaging?
     }
+  end
+
+  def decode_compressed_position(
+        <<"/", latitude::binary-size(4), longitude::binary-size(4), symbol::binary-size(1),
+          cs::binary-size(2), compression_type::binary-size(2), rest::binary>>
+      ) do
+    [x1, x2, x3, x4] = longitude |> to_charlist
+    [y1, y2, y3, y4] = latitude |> to_charlist
+    lat = 90 - ((y1 - 33) * 91 * 91 * 91 + (y2 - 33) * 92 * 92 + (y3 - 33) * 91 + y4) / 380_926.0
+
+    lon =
+      -180 + ((x1 - 33) * 91 * 91 * 91 + (x2 - 33) * 92 * 92 + (x3 - 33) * 91 + x4) / 190_463.0
+
+    [:ok, lat, lon]
+  end
+
+  def parse_position_without_timestamp(aprs_messaging?, <<"!!", rest::binary>>) do
+    # this is an ultimeter weather station. need to parse its weird format
+    "TODO: PARSE ULTIMETER DATA"
+  end
+
+  def parse_position_without_timestamp(
+        aprs_messaging?,
+        <<_dti::binary-size(1), "/", latitude::binary-size(4), longitude::binary-size(4), sym_table_id::binary-size(1),
+          cs::binary-size(2), compression_type::binary-size(1), comment::binary>>
+      ) do
+    "TODO: PARSE COMPRESSED LAT/LON"
   end
 
   def parse_position_without_timestamp(
@@ -152,7 +182,7 @@ defmodule Aprs.Parser do
     %Mic_e{
       lat_degrees: destination_data.lat_degrees,
       lat_minutes: destination_data.lat_minutes,
-      lat_seconds: destination_data.lat_seconds,
+      lat_fractional: destination_data.lat_fractional,
       lat_direction: destination_data.lat_direction,
       lon_direction: destination_data.lon_direction,
       longitude_offset: destination_data.longitude_offset,
@@ -188,7 +218,7 @@ defmodule Aprs.Parser do
 
     deg = digits |> Enum.slice(0..1) |> Enum.join() |> String.to_integer()
     min = digits |> Enum.slice(2..3) |> Enum.join() |> String.to_integer()
-    sec = digits |> Enum.slice(4..5) |> Enum.join() |> String.to_integer()
+    fractional = digits |> Enum.slice(4..5) |> Enum.join() |> String.to_integer()
 
     [ns, lo, ew] = destination_field |> to_charlist |> Enum.slice(3..5)
 
@@ -256,7 +286,7 @@ defmodule Aprs.Parser do
     %{
       lat_degrees: deg,
       lat_minutes: min,
-      lat_seconds: sec,
+      lat_fractional: fractional,
       lat_direction: north_south_indicator,
       lon_direction: east_west_indicator,
       longitude_offset: longitude_offset,
