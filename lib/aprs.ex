@@ -8,14 +8,14 @@ defmodule Aprs do
   # Initialization
 
   def start_link do
+    GenServer.start_link(__MODULE__, nil, name: __MODULE__)
+  end
+
+  def init(_args) do
+    # Get startup parameters
     server = Application.get_env(:aprs, :server, 'rotate.aprs2.net')
     port = Application.get_env(:aprs, :port, 14580)
     default_filter = Application.get_env(:aprs, :default_filter, "r/47.6/-122.3/100")
-    GenServer.start_link(__MODULE__, [server, port, default_filter], name: __MODULE__)
-  end
-
-  def init([server, port, default_filter]) do
-    # TODO: Either put these up in start_link, or move the start_link stuff here
     aprs_user_id = Application.get_env(:aprs, :login_id, "CHANGE_ME")
     aprs_passcode = Application.get_env(:aprs, :password, "-1")
 
