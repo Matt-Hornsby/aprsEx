@@ -11,7 +11,6 @@ defmodule Aprs.Types.Position do
             lon_fractional: 0
 
   def from_aprs(aprs_latitude, aprs_longitude) do
-    IO.inspect([aprs_latitude, aprs_longitude])
     aprs_latitude = aprs_latitude |> String.replace(" ", "0") |> String.pad_leading(9, "0")
     aprs_longitude = aprs_longitude |> String.replace(" ", "0") |> String.pad_leading(9, "0")
 

@@ -59,12 +59,9 @@ defmodule Aprs.Parser do
   def parse_data(:mic_e, destination, data), do: parse_mic_e(destination, data)
   def parse_data(:mic_e_old, destination, data), do: parse_mic_e(destination, data)
   def parse_data(:position, _destination, data), do: parse_position_without_timestamp(false, data)
-
-  def parse_data(:position_with_message, _destination, data),
-    do: parse_position_without_timestamp(true, data)
-
-  def parse_data(:timestamped_position, _destination, data),
-    do: parse_position_with_timestamp(false, data)
+  def parse_data(:position_with_message, _destination, data), do: parse_position_without_timestamp(true, data)
+  def parse_data(:timestamped_position, _destination, data), do: parse_position_with_timestamp(false, data)
+  def parse_data(:timestamped_position_with_message, _destination, data), do: parse_position_with_timestamp(true, data)
 
   def parse_data(
         :timestamped_position_with_message,
@@ -73,9 +70,6 @@ defmodule Aprs.Parser do
       ) do
     parse_position_with_datetime_and_weather(true, date_time_position, weather_report)
   end
-
-  def parse_data(:timestamped_position_with_message, _destination, data),
-    do: parse_position_with_timestamp(true, data)
 
   def parse_data(:message, destination, <<":", addressee::binary-size(9), ":", message_text::binary>>) do
     %{to: String.trim(addressee), message_text: String.trim(message_text)}
@@ -225,7 +219,7 @@ defmodule Aprs.Parser do
       case ns do
         x when x in ?0..?9 -> :south
         x when x == ?L -> :south
-        x when x in ?P..?Y -> :north
+        x when x in ?P..?Z -> :north
         _ -> :unknown
       end
 
@@ -233,7 +227,7 @@ defmodule Aprs.Parser do
       case ew do
         x when x in ?0..?9 -> :east
         x when x == ?L -> :east
-        x when x in ?P..?Y -> :west
+        x when x in ?P..?Z -> :west
         _ -> :unknown
       end
 
@@ -241,7 +235,7 @@ defmodule Aprs.Parser do
       case lo do
         x when x in ?0..?9 -> 0
         x when x == ?L -> 0
-        x when x in ?P..?Y -> 100
+        x when x in ?P..?Z -> 100
         _ -> :unknown
       end
 
