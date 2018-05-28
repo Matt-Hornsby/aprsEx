@@ -59,9 +59,15 @@ defmodule Aprs.Parser do
   def parse_data(:mic_e, destination, data), do: parse_mic_e(destination, data)
   def parse_data(:mic_e_old, destination, data), do: parse_mic_e(destination, data)
   def parse_data(:position, _destination, data), do: parse_position_without_timestamp(false, data)
-  def parse_data(:position_with_message, _destination, data), do: parse_position_without_timestamp(true, data)
-  def parse_data(:timestamped_position, _destination, data), do: parse_position_with_timestamp(false, data)
-  def parse_data(:timestamped_position_with_message, _destination, data), do: parse_position_with_timestamp(true, data)
+
+  def parse_data(:position_with_message, _destination, data),
+    do: parse_position_without_timestamp(true, data)
+
+  def parse_data(:timestamped_position, _destination, data),
+    do: parse_position_with_timestamp(false, data)
+
+  def parse_data(:timestamped_position_with_message, _destination, data),
+    do: parse_position_with_timestamp(true, data)
 
   def parse_data(
         :timestamped_position_with_message,
@@ -71,8 +77,28 @@ defmodule Aprs.Parser do
     parse_position_with_datetime_and_weather(true, date_time_position, weather_report)
   end
 
-  def parse_data(:message, destination, <<":", addressee::binary-size(9), ":", message_text::binary>>) do
-    %{to: String.trim(addressee), message_text: String.trim(message_text)}
+  def parse_data(
+        :message,
+        destination,
+        <<":", addressee::binary-size(9), ":", message_text::binary>>
+      ) do
+    # Aprs messages can have an optional message number tacked onto the end
+    # for the purposes of acknowledging message receipt.
+    # The sender tacks the message number onto the end of the message,
+    # and the receiving station is supposed to respond back with an 
+    # acknowledgement of that message number.
+    # Example
+    # Sender: Hello world{123
+    # Receiver: ack123
+    # Special thanks to Jeff Smith(https://github.com/electricshaman) for the regex
+    regex = ~r/^(?<message>.*?)(?:{(?<message_number>\w+))?$/i
+    result = find_matches(regex, message_text)
+
+    %{
+      to: String.trim(addressee),
+      message_text: String.trim(result["message"]),
+      message_number: result["message_number"]
+    }
   end
 
   def parse_data(_type, _destination, _data), do: nil
@@ -102,13 +128,14 @@ defmodule Aprs.Parser do
         <<"/", latitude::binary-size(4), longitude::binary-size(4), symbol::binary-size(1),
           cs::binary-size(2), compression_type::binary-size(2), rest::binary>>
       ) do
-    [x1, x2, x3, x4] = longitude |> to_charlist
-    [y1, y2, y3, y4] = latitude |> to_charlist
-
-    lat = 90 - ((y1 - 33) * 91 * 91 * 91 + (y2 - 33) * 91 * 91 + (y3 - 33) * 91 + y4) / 380_926.0
-    lon = -180 + ((x1 - 33) * 91 * 91 * 91 + (x2 - 33) * 91 * 91 + (x3 - 33) * 91 + x4) / 190_463.0
-
+    lat = convert_to_base91(latitude)
+    lon = convert_to_base91(longitude)
     [:ok, lat, lon]
+  end
+
+  defp convert_to_base91(<<value::binary-size(4)>>) do
+    [v1, v2, v3, v4] = to_charlist(value)
+    (v1 - 33) * 91 * 91 * 91 + (v2 - 33) * 91 * 91 + (v3 - 33) * 91 + v4
   end
 
   def parse_position_without_timestamp(aprs_messaging?, <<"!!", rest::binary>>) do
@@ -118,8 +145,9 @@ defmodule Aprs.Parser do
 
   def parse_position_without_timestamp(
         aprs_messaging?,
-        <<_dti::binary-size(1), "/", latitude::binary-size(4), longitude::binary-size(4), sym_table_id::binary-size(1),
-          cs::binary-size(2), compression_type::binary-size(1), comment::binary>>
+        <<_dti::binary-size(1), "/", latitude::binary-size(4), longitude::binary-size(4),
+          sym_table_id::binary-size(1), cs::binary-size(2), compression_type::binary-size(1),
+          comment::binary>>
       ) do
     "TODO: PARSE COMPRESSED LAT/LON"
   end
