@@ -19,10 +19,21 @@ defmodule Aprs do
     aprs_user_id = Application.get_env(:aprs, :login_id, "CHANGE_ME")
     aprs_passcode = Application.get_env(:aprs, :password, "-1")
 
+    # Set up ets tables
+    message_number_table = :ets.new(:message_number, [:set, :protected])
+    :ets.insert(message_number_table, {"last_message_number", 0})
+
     with {:ok, socket} <- connect_to_aprs_is(server, port),
          :ok <- send_login_string(socket, aprs_user_id, aprs_passcode, default_filter),
          timer <- create_timer(@aprs_timeout) do
-      {:ok, %{server: server, port: port, socket: socket, timer: timer}}
+      {:ok,
+       %{
+         server: server,
+         port: port,
+         socket: socket,
+         timer: timer,
+         message_number_table: message_number_table
+       }}
     else
       _ ->
         Logger.error("Unable to establish connection or log in to APRS-IS")
@@ -46,7 +57,7 @@ defmodule Aprs do
   end
 
   def send_message(message) do
-    GenServer.call(__MODULE__, {:send_message, message <> "\r"})
+    GenServer.call(__MODULE__, {:send_message, message})
   end
 
   # Server methods
@@ -69,7 +80,11 @@ defmodule Aprs do
   end
 
   def handle_call({:send_message, message}, _from, state) do
-    Logger.info("Sending message: #{message}")
+    next_ack_number = :ets.update_counter(state.message_number_table, "last_message_number", 1)
+    # Append ack number
+    message = message <> "{" <> to_string(next_ack_number) <> "\r"
+
+    Logger.info("Sending message: #{inspect message}")
     :gen_tcp.send(state.socket, message)
     {:reply, :ok, state}
   end
