@@ -66,9 +66,6 @@ defmodule Aprs.Parser do
   def parse_data(:timestamped_position, _destination, data),
     do: parse_position_with_timestamp(false, data)
 
-  def parse_data(:timestamped_position_with_message, _destination, data),
-    do: parse_position_with_timestamp(true, data)
-
   def parse_data(
         :timestamped_position_with_message,
         _destination,
@@ -76,6 +73,9 @@ defmodule Aprs.Parser do
       ) do
     parse_position_with_datetime_and_weather(true, date_time_position, weather_report)
   end
+
+  def parse_data(:timestamped_position_with_message, _destination, data),
+    do: parse_position_with_timestamp(true, data)
 
   def parse_data(
         :message,

@@ -1,5 +1,6 @@
 defmodule Aprs.Types.Position do
   alias __MODULE__
+  require Logger
 
   defstruct lat_degrees: 0,
             lat_minutes: 0,
@@ -14,11 +15,16 @@ defmodule Aprs.Types.Position do
     aprs_latitude = aprs_latitude |> String.replace(" ", "0") |> String.pad_leading(9, "0")
     aprs_longitude = aprs_longitude |> String.replace(" ", "0") |> String.pad_leading(9, "0")
 
-    <<lat_deg::binary-size(3), lat_min::binary-size(2), lat_fractional::binary-size(3),
-      lat_direction::binary>> = aprs_latitude
+    Logger.debug("#{aprs_latitude} #{aprs_longitude}")
 
-    <<lon_deg::binary-size(3), lon_min::binary-size(2), lon_fractional::binary-size(3),
-      lon_direction::binary>> = aprs_longitude
+    <<latitude::binary-size(8), lat_direction::binary>> = aprs_latitude
+    <<longitude::binary-size(8), lon_direction::binary>> = aprs_longitude
+
+    <<lat_deg::binary-size(3), lat_min::binary-size(2), lat_fractional::binary-size(3)>> =
+      convert_garbage_to_zero(latitude)
+
+    <<lon_deg::binary-size(3), lon_min::binary-size(2), lon_fractional::binary-size(3)>> =
+      convert_garbage_to_zero(longitude)
 
     %Position{
       lat_degrees: lat_deg |> String.to_integer(),
@@ -51,6 +57,10 @@ defmodule Aprs.Types.Position do
   defp convert_direction(:east), do: "E"
   defp convert_direction(:west), do: "W"
   defp convert_direction(:unknown), do: ""
+  defp convert_direction(_nomatch), do: ""
+
+  defp convert_garbage_to_zero(a_float) when is_float(a_float), do: a_float
+  defp convert_garbage_to_zero(_not_a_float), do: "00000.00"
 
   defp convert_fractional(fractional),
     do:
