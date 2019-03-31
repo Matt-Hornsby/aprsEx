@@ -11,6 +11,7 @@ defmodule Aprs.Types.Position do
             lon_minutes: 0,
             lon_fractional: 0
 
+  @spec from_aprs(binary(), binary()) :: Aprs.Types.Position.t()
   def from_aprs(aprs_latitude, aprs_longitude) do
     aprs_latitude = aprs_latitude |> String.replace(" ", "0") |> String.pad_leading(9, "0")
     aprs_longitude = aprs_longitude |> String.replace(" ", "0") |> String.pad_leading(9, "0")
@@ -38,6 +39,7 @@ defmodule Aprs.Types.Position do
     }
   end
 
+  @spec to_string(Aprs.Types.Position.t()) :: <<_::64, _::_*8>>
   def to_string(%__MODULE__{} = position) do
     "#{position.lat_degrees}°" <>
       "#{position.lat_minutes}'" <>
