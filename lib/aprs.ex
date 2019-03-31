@@ -23,12 +23,23 @@ defmodule Aprs do
     aprs_passcode = Application.get_env(:aprs, :password, "-1")
 
     # Set up ets tables
-    # TODO: Create table if files don't exist
-    :ets.file2tab(:erlang.binary_to_list("priv/aprs.ets"))
-    # :ets.file2tab(:erlang.binary_to_list("priv/aprs_messages.ets"))
-    # :ets.new(:aprs, [:set, :protected, :named_table])
-    # :ets.insert(:aprs, {:message_number, 0, Time.utc_now()})
-    :ets.new(:aprs_messages, [:bag, :protected, :named_table])
+
+    with {:ok, :aprs} <- :ets.file2tab(:erlang.binary_to_list("priv/aprs.ets")),
+         {:ok, :aprs_messages} <- :ets.file2tab(:erlang.binary_to_list("priv/aprs_messages.ets")) do
+    else
+      {:error, _reason} ->
+        Logger.debug("Ets files not found. Creating new ETS tables.")
+        # Create new ETS tables
+        :ets.new(:aprs, [:set, :protected, :named_table])
+        :ets.new(:aprs_messages, [:bag, :protected, :named_table])
+
+        # Write them to file here in case genserver is brutally terminated
+        :ets.tab2file(:aprs, :erlang.binary_to_list("priv/aprs.ets"))
+        :ets.tab2file(:aprs_messages, :erlang.binary_to_list("priv/aprs_messages.ets"))
+
+      _ ->
+        Logger.error("Unable to set up ETS tables for message storage.")
+    end
 
     # TODO: Split out the APRS server connectivity into a different process
     # so that it can be interacted with separately from the message processing.
@@ -157,12 +168,18 @@ defmodule Aprs do
 
     # Get messages since last time the callsign was seen
     # TODO: Get last seen timestamp and use that
-    message_count = case :ets.lookup(:aprs_messages,parsed_message.sender) do
-       [{_callsign, _message, timestamp}] -> recent_messages_for(parsed_message.sender, timestamp)
-       [] -> 0
-       _ -> 0
-    end
-    
+    message_count =
+      case :ets.lookup(:aprs_messages, parsed_message.sender) do
+        [{_callsign, _message, timestamp}] ->
+          recent_messages_for(parsed_message.sender, timestamp)
+
+        [] ->
+          0
+
+        _ ->
+          0
+      end
+
     Logger.debug("#{message_count} recent messages for #{parsed_message.sender}")
 
     # Do something interesting with the message
@@ -192,7 +209,7 @@ defmodule Aprs do
   def recent_messages_for(callsign, since_time) do
     callsign_guard = {:==, :"$1", {:const, callsign}}
     timestamp_guard = {:>=, :"$2", {:const, since_time}}
-    total_spec = [{{:"$1", :"_", :"$2"},[{:andalso, callsign_guard, timestamp_guard}],[true]}]
+    total_spec = [{{:"$1", :_, :"$2"}, [{:andalso, callsign_guard, timestamp_guard}], [true]}]
     :ets.select_count(:aprs_messages, total_spec)
   end
 end
