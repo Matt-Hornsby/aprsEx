@@ -16,11 +16,11 @@ defmodule Aprs do
     Process.flag(:trap_exit, true)
 
     # Get startup parameters
-    server = Application.get_env(:aprs, :server, 'rotate.aprs2.net')
-    port = Application.get_env(:aprs, :port, 14580)
-    default_filter = Application.get_env(:aprs, :default_filter, "r/47.6/-122.3/100")
-    aprs_user_id = Application.get_env(:aprs, :login_id, "CHANGE_ME")
-    aprs_passcode = Application.get_env(:aprs, :password, "-1")
+    server = Application.get_env(:aprs_ex, :server, 'rotate.aprs2.net')
+    port = Application.get_env(:aprs_ex, :port, 14580)
+    default_filter = Application.get_env(:aprs_ex, :default_filter, "r/47.6/-122.3/100")
+    aprs_user_id = Application.get_env(:aprs_ex, :login_id, "CHANGE_ME")
+    aprs_passcode = Application.get_env(:aprs_ex, :password, "-1")
 
     # Set up ets tables
 

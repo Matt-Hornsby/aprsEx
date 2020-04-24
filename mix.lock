@@ -1,0 +1,3 @@
+%{
+  "aprs_parse": {:hex, :aprs_parse, "0.1.0", "d1c27dd2aae669208a18b38e23ae6ada7e16844880b5291e0b765bd0ce1dce79", [:mix], [], "hexpm", "7a9373420cc6392cfdb40526c6e12791066aa485a3d91b14fa50e2deb5daa4aa"},
+}
